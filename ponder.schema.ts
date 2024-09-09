@@ -1,8 +1,140 @@
 import { createSchema } from "@ponder/core";
 
 export default createSchema((p) => ({
-  Example: p.createTable({
+  Auction: p.createTable({
     id: p.string(),
-    name: p.string().optional(),
+    nounId: p.bigint(),
+    amount: p.bigint(),
+    startTime: p.bigint(),
+    endTime: p.bigint(),
+    bidder: p.string(),
+    settled: p.boolean(),
+    clientId: p.bigint().optional(),
+    bids: p.many("Bid.auction"),
+  }),
+
+  Bid: p.createTable({
+    id: p.string(),
+    auction: p.string().references("Auction.id"),
+    bidder: p.string(),
+    amount: p.bigint(),
+    clientId: p.bigint().optional(),
+    timestamp: p.bigint(),
+    extended: p.boolean(),
+  }),
+
+  Proposal: p.createTable({
+    id: p.string(),
+    proposalId: p.bigint(),
+    proposer: p.string(),
+    targets: p.json(),
+    values: p.json(),
+    signatures: p.json(),
+    calldatas: p.json(),
+    startBlock: p.bigint(),
+    endBlock: p.bigint(),
+    description: p.string(),
+    status: p.string(),
+    quorumVotes: p.bigint(),
+    proposalThreshold: p.bigint(),
+    objectionPeriodEndBlock: p.bigint().optional(),
+    createdTimestamp: p.bigint(),
+    updatedTimestamp: p.bigint().optional(),
+    executedTimestamp: p.bigint().optional(),
+    queuedTimestamp: p.bigint().optional(),
+    canceledTimestamp: p.bigint().optional(),
+    vetoedTimestamp: p.bigint().optional(),
+    votes: p.many("Vote.proposal"),
+  }),
+
+  ProposalCandidate: p.createTable({
+    id: p.string(),
+    proposer: p.string(),
+    targets: p.json(),
+    values: p.json(),
+    signatures: p.json(),
+    calldatas: p.json(),
+    description: p.string(),
+    status: p.string(),
+    createdTimestamp: p.bigint(),
+    updatedTimestamp: p.bigint().optional(),
+    canceledTimestamp: p.bigint().optional(),
+  }),
+
+  Vote: p.createTable({
+    id: p.string(),
+    proposal: p.string().references("Proposal.id"),
+    voter: p.string(),
+    support: p.boolean(),
+    votes: p.bigint(),
+    reason: p.string().optional(),
+    clientId: p.bigint().optional(),
+    refunded: p.boolean(),
+  }),
+
+  Fork: p.createTable({
+    id: p.string(),
+    forkId: p.bigint(),
+    forkTreasury: p.string().optional(),
+    forkToken: p.string().optional(),
+    forkEndTimestamp: p.bigint().optional(),
+    tokensInEscrow: p.bigint(),
+    executed: p.boolean(),
+    joins: p.many("ForkJoin.fork"),
+  }),
+
+  ForkJoin: p.createTable({
+    id: p.string(),
+    fork: p.string().references("Fork.id"),
+    participant: p.string(),
+    tokenIds: p.json(),
+    proposalIds: p.json(),
+    reason: p.string().optional(),
+  }),
+
+  Feedback: p.createTable({
+    id: p.string(),
+    proposal: p.string().references("Proposal.id").optional(),
+    proposalCandidate: p.string().references("ProposalCandidate.id").optional(),
+    sender: p.string(),
+    support: p.boolean(),
+    reason: p.string().optional(),
+  }),
+
+  Noun: p.createTable({
+    id: p.string(),
+    tokenId: p.bigint(),
+    owner: p.string(),
+    delegate: p.string().optional(),
+    created: p.bigint(),
+    burned: p.bigint().optional(),
+    background: p.string(),
+    body: p.string(),
+   accessory: p.string(),
+   head: p.string(),
+   glasses: p.string(),
+  }),
+
+  Delegate: p.createTable({
+    id: p.string(),
+    delegator: p.string(),
+    delegate: p.string(),
+    tokenBalance: p.bigint(),
+    votes: p.bigint(),
+  }),
+
+  Signature: p.createTable({
+    id: p.string(),
+    signer: p.string(),
+    signature: p.string(),
+    expirationTimestamp: p.bigint(),
+    canceled: p.boolean(),
+  }),
+
+  Withdrawal: p.createTable({
+    id: p.string(),
+    withdrawer: p.string(),
+    amount: p.bigint(),
+    timestamp: p.bigint(),
   }),
 }));
