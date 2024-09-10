@@ -17,11 +17,34 @@ ponder.on("NounsAuctionHouseV2:AuctionCreated", async ({ event, context }) => {
   });
 });
 
+ponder.on("NounsAuctionHouseV2:AuctionBid", async ({ event, context }) => {
+  const { Auction, Bid } = context.db;
+  const { nounId, sender, value, extended } = event.args;
+
+  await Bid.create({
+    id: `${nounId}-${event.transaction.hash}-${event.log.logIndex}`,
+    data: {
+      auction: nounId.toString(),
+      bidder: sender,
+      amount: value,
+      timestamp: BigInt(event.block.timestamp),
+      extended,
+    },
+  });
+
+  await Auction.update({
+    id: nounId.toString(),
+    data: {
+      amount: value,
+      bidder: sender,
+    },
+  });
+});
+
 ponder.on("NounsAuctionHouseV2:AuctionBidWithClientId", async ({ event, context }) => {
   const { Auction, Bid } = context.db;
   const { nounId, value, clientId } = event.args;
   
-  // Get the bidder address from the transaction sender
   const bidder = event.transaction.from;
 
   await Bid.create({
@@ -30,9 +53,9 @@ ponder.on("NounsAuctionHouseV2:AuctionBidWithClientId", async ({ event, context 
       auction: nounId.toString(),
       bidder,
       amount: value,
-      clientId: BigInt(clientId), // Convert number to bigint
+      clientId: BigInt(clientId),
       timestamp: BigInt(event.block.timestamp),
-      extended: false, // We don't have this information in the event, so we'll set it to false
+      extended: false, // We don't have this information in the event
     },
   });
 
@@ -41,7 +64,6 @@ ponder.on("NounsAuctionHouseV2:AuctionBidWithClientId", async ({ event, context 
     data: {
       amount: value,
       bidder,
-      // We don't have 'extended' information, so we'll leave endTime as is
     },
   });
 });
@@ -78,7 +100,7 @@ ponder.on("NounsAuctionHouseV2:AuctionSettledWithClientId", async ({ event, cont
     id: nounId.toString(),
     data: {
       settled: true,
-      clientId: BigInt(clientId), // Convert number to bigint
+      clientId: BigInt(clientId),
     },
   });
 });

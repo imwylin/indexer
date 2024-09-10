@@ -17,9 +17,10 @@ ponder.on("NounsDAOV4:ProposalCreated", async ({ event, context }) => {
       endBlock,
       description,
       status: "PENDING",
-      quorumVotes: 0n,
-      proposalThreshold: 0n,
       createdTimestamp: BigInt(event.block.timestamp),
+      proposalThreshold: 0n, // You'll need to calculate or fetch this value
+      quorumVotes: 0n, // You'll need to calculate or fetch this value
+      objectionPeriodEndBlock: 0n, // Set this if applicable, otherwise you might remove it
     },
   });
 });
@@ -65,7 +66,7 @@ ponder.on("NounsDAOV4:ProposalExecuted", async ({ event, context }) => {
 
 ponder.on("NounsDAOV4:ProposalQueued", async ({ event, context }) => {
   const { Proposal } = context.db;
-  const { id, eta } = event.args;
+  const { id } = event.args;
 
   await Proposal.update({
     id: id.toString(),
@@ -109,74 +110,50 @@ ponder.on("NounsDAOV4:RefundableVote", async ({ event, context }) => {
   const { Vote } = context.db;
   const { voter, refundAmount, refundSent } = event.args;
 
-  // Note: This event doesn't include the proposalId, so we can't directly update the Vote.
-  // We might need to implement a different strategy to handle this, such as:
-  // 1. Keeping track of the latest vote for each voter
-  // 2. Updating all unrefunded votes for this voter
-  // 3. Creating a separate Refund entity
-
-  console.log(`Refund for ${voter}: Amount ${refundAmount}, Sent: ${refundSent}`);
-});
-
-ponder.on("NounsDAOV4:EscrowedToFork", async ({ event, context }) => {
-  const { Fork, ForkJoin } = context.db;
-  const { forkId, owner, tokenIds, proposalIds, reason } = event.args;
-
-  await Fork.create({
-    id: forkId.toString(),
-    data: {
-      forkId: BigInt(forkId), // Convert number to BigInt
-      tokensInEscrow: BigInt(tokenIds.length),
-      executed: false,
-    },
+  const votesResult = await Vote.findMany({
+    where: { voter, refunded: false },
+    orderBy: { id: "desc" },
+    limit: 1,
   });
 
-  await ForkJoin.create({
-    id: `${forkId.toString()}-${owner}`,
-    data: {
-      fork: forkId.toString(),
-      participant: owner,
-      tokenIds: tokenIds.map(String),
-      proposalIds: proposalIds.map(String),
-      reason: reason || undefined,
-    },
-  });
+  if (votesResult.items.length > 0) {
+    const vote = votesResult.items[0];
+    if (vote) {
+      await Vote.update({
+        id: vote.id,
+        data: {
+          refunded: refundSent,
+        },
+      });
+    }
+  }
 });
 
-ponder.on("NounsDAOV4:ExecuteFork", async ({ event, context }) => {
-  const { Fork } = context.db;
-  const { forkId, forkTreasury, forkToken, forkEndTimestamp, tokensInEscrow } = event.args;
+ponder.on("NounsDAOV4:ProposalDescriptionUpdated", async ({ event, context }) => {
+  const { Proposal } = context.db;
+  const { id, description, updateMessage } = event.args;
 
-  await Fork.update({
-    id: forkId.toString(),
+  await Proposal.update({
+    id: id.toString(),
     data: {
-      forkTreasury,
-      forkToken,
-      forkEndTimestamp,
-      tokensInEscrow,
-      executed: true,
+      description,
+      updatedTimestamp: BigInt(event.block.timestamp),
     },
   });
 });
 
-ponder.on("NounsDAOV4:JoinFork", async ({ event, context }) => {
-  const { ForkJoin } = context.db;
-  const { forkId, owner, tokenIds, proposalIds, reason } = event.args;
+ponder.on("NounsDAOV4:ProposalTransactionsUpdated", async ({ event, context }) => {
+  const { Proposal } = context.db;
+  const { id, targets, values, signatures, calldatas } = event.args;
 
-  await ForkJoin.create({
-    id: `${forkId.toString()}-${owner}`,
+  await Proposal.update({
+    id: id.toString(),
     data: {
-      fork: forkId.toString(),
-      participant: owner,
-      tokenIds: tokenIds.map(String),
-      proposalIds: proposalIds.map(String),
-      reason: reason || undefined,
+      targets,
+      values: values.map(String),
+      signatures,
+      calldatas,
+      updatedTimestamp: BigInt(event.block.timestamp),
     },
   });
-});
-
-ponder.on("NounsDAOV4:WithdrawFromForkEscrow", async ({ event, context }) => {
-  // This event might require more complex logic depending on how you want to handle withdrawals
-  // For now, we'll just log it
-  console.log("WithdrawFromForkEscrow event:", event.args);
 });
